@@ -1,0 +1,16 @@
+xiaoyi.png 占位图来源与许可
+================================
+
+当前文件：frontend/public/avatars/xiaoyi.png（聊天页欢迎态头像 / 陪伴角头像）
+
+来源：Wikimedia Commons — File:Cute girl.png
+  https://commons.wikimedia.org/wiki/File:Cute_girl.png
+原作者：dcatcherex（Open Clip Art Library）
+授权：公有领域（Public Domain，Open Clip Art Library 明确放弃版权）
+
+说明
+----
+- 这是「临时占位图」，仅用于界面开发期让聊天页形象位不破图。
+- 正式形象请替换本文件（保持文件名 xiaoyi.png 不变，代码零改动）：
+  建议规格：透明底 Q 版半身/头像立绘，PNG，建议 ≥512x512，主体居中。
+- 替换后如不再使用本占位图，本说明可一并删除。

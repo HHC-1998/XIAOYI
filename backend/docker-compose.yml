@@ -1,0 +1,132 @@
+# 注意：Compose v2 不再需要 version 字段（写 version: "3.8" 会告警且已过时），
+#       condition: service_healthy 由 v2 直接支持。
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: xiaoyi_postgres
+    environment:
+      POSTGRES_USER: xiaoyi
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-xiaoyi_pass}
+      POSTGRES_DB: xiaoyi
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xiaoyi -d xiaoyi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  chroma:
+    # 版本锁死 1.0.0：与 backend 客户端 chromadb==1.0.0 对齐（防止 latest 漂移导致客户端/服务端不匹配）
+    image: chromadb/chroma:1.0.0
+    container_name: xiaoyi_chroma
+    volumes:
+      - chroma_data:/chroma/chroma
+    ports:
+      - "8001:8000"
+    # 新版 chroma 镜像无 python/curl/wget，且已废弃 v1 API（返回 410），
+    # 故用 bash /dev/tcp 探测 v2 心跳接口（实测 HTTP 200）。
+    # 注意：CMD-SHELL 默认走 /bin/sh（dash），不支持 /dev/tcp，须显式 bash -c
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8000 && printf \"GET /api/v2/heartbeat HTTP/1.0\\r\\n\\r\\n\" >&3 && head -1 <&3 | grep -q \"200 OK\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: xiaoyi_neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-xiaoyi_pass}
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER:-neo4j} -p ${NEO4J_PASSWORD:-xiaoyi_pass} 'RETURN 1'"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      # BuildKit 构建代理：让容器内 pip install 走宿主机 Clash（host.docker.internal
+      # 是 Docker Desktop 的宿主机别名；Dockerfile 内已默认清华 pip 源作兜底）
+      args:
+        HTTP_PROXY: http://host.docker.internal:7890
+        HTTPS_PROXY: http://host.docker.internal:7890
+        NO_PROXY: localhost,127.0.0.1
+    container_name: xiaoyi_backend
+    # healthcheck 依赖 GET /api/health（无需认证，见 01 §5.6）
+    environment:
+      DATABASE_URL: postgresql://xiaoyi:${DB_PASSWORD:-xiaoyi_pass}@postgres:5432/xiaoyi
+      CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-xiaoyi_pass}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      # 标记运行在容器内：llm_provider 据此把用户填的 localhost 自动解析为宿主机
+      #（Ollama 等本地模型 base_url 可直接填 http://localhost:11434）
+      XIAOYI_IN_DOCKER: "1"
+    # 让 host.docker.internal 在 Linux 主机也解析到宿主机（Docker Desktop 内置该别名，
+    # 此处 host-gateway 对其同样生效），供本地模型连通性测试与扫描使用
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    # 流式 ASR 模型目录（2026-09-03，04 §8 / 台账 38 节）：模型体积 ~70MB 不进镜像
+    #（.dockerignore 排除），由宿主机 backend/models 实时挂入 /app/models 供懒加载。
+    volumes:
+      - ../backend/models:/app/models
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      # BuildKit 构建代理：让容器内 npm install 走宿主机 Clash（Dockerfile 内已默认 npmmirror 作兜底）
+      args:
+        HTTP_PROXY: http://host.docker.internal:7890
+        HTTPS_PROXY: http://host.docker.internal:7890
+        NO_PROXY: localhost,127.0.0.1
+    container_name: xiaoyi_frontend
+    ports:
+      - "8080:80"          # 映射到 8080，避免 80 在 Windows/macOS 需要管理员权限
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  # 显式指定卷名（name:），与备份脚本 -v xiaoyi_*_data 的挂载名保持一致；
+  # 否则 Compose 会生成项目名前缀卷（如 backend_neo4j_data），备份脚本会挂载到空卷。
+  pg_data:
+    name: xiaoyi_pg_data
+  chroma_data:
+    name: xiaoyi_chroma_data
+  neo4j_data:
+    name: xiaoyi_neo4j_data
+  neo4j_logs:
+    name: xiaoyi_neo4j_logs
+  neo4j_dumps:    # 供备份脚本的 Neo4j dump 中转（临时容器挂载）
+    name: xiaoyi_neo4j_dumps

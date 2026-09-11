@@ -1,0 +1,7 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# postinstall 拷贝的 Silero VAD 资产（由 scripts/copy-vad-assets.mjs 生成，勿入库；
+# 目录带版本号，换版本时改 copy-vad-assets.mjs 的目标目录即可绕开浏览器旧缓存）
+public/vad2/

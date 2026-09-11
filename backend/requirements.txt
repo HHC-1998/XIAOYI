@@ -1,0 +1,49 @@
+# XIAOYI 后端依赖（01 §7 技术栈 / 04 §8 / 02 §8 / 03 §10）
+fastapi==0.115.9
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+# 多部分表单上传（04 §6 语音文件 / 09 §5 数据导入 / 12 §2 多类型文件上传）
+python-multipart==0.0.20
+
+# 多类型文件上传文本提取（12 §2）：PDF / Word / Excel
+pypdf==5.1.0
+python-docx==1.1.2
+openpyxl==3.1.5
+
+# 向量记忆（02 §8）
+# 版本必须与 chroma 服务端镜像 tag 对齐（当前 chromadb/chroma:1.0.0）：
+# 服务端 1.x 返回的 collection JSON 带 configuration 结构，旧客户端 0.5.x 解析时会 KeyError('_type')。
+# 升级任一侧必须同步另一侧（见 AGENTS.md Chroma 版本锁定约定）。
+chromadb==1.0.0
+
+# 知识图谱（03 §10）
+neo4j==5.27.0
+
+# 认证（01 §5.4）
+PyJWT==2.10.1
+
+# 语音（04 §8/§9）
+openai>=1.40.0
+# 本地 TTS（04 §9）：2026-09-03 十八轮起 edge-tts 在线合成（微软 Edge 神经语音，直出 mp3），
+# 替换 piper-tts 本地合成（机械朗读）。TTS 为 AGENTS.md「不接云端 API」的唯一有意例外（用户确认）。
+edge-tts
+# 本地 ASR（可选，未配 OPENAI_API_KEY 时使用；首次运行需下载模型）
+faster-whisper>=1.0.3
+# 流式 ASR（2026-09-03，桌面助手"边听边出字"，见 04 §8 / 台账 38 节）：
+# sherpa-onnx 自带 ONNX Runtime，CPU 推理开箱即用（wheel 无 CUDA 依赖）。
+# 模型不随 pip 安装，需手动下载到 backend/models/sherpa-asr（compose bind mount 挂入，见 04 §8）。
+sherpa-onnx
+
+# HTTP（llm_provider / chroma_client 调用 OpenAI 兼容接口）
+httpx==0.28.1
+
+# 定时遗忘任务（02 §8，asyncio 后台循环实现）
+apscheduler==3.10.4
+
+# ffmpeg 为系统级依赖（04 §5/§8.2）：
+# - Windows：https://www.gyan.dev/ffmpeg/builds/ 下载并加入 PATH
+# - Linux：apt install ffmpeg（06 后端 Dockerfile 已安装）
+# - macOS：brew install ffmpeg

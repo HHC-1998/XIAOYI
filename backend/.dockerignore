@@ -1,0 +1,9 @@
+# 模型/依赖不进 Docker 镜像（04 §8 流式 ASR 模型靠 compose bind mount 挂入，避免镜像膨胀；
+# faster-whisper 模型已由 Dockerfile 内预下载到系统缓存，非本目录）
+models/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/

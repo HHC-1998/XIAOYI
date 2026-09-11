@@ -1,0 +1,60 @@
+# ---- secrets ----
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+
+# ---- large models / ASR weights (download locally) ----
+/models/
+backend/models/
+
+# ---- training tree (~15GB: venv, llama.cpp, weights) ----
+/训练/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.venv/
+venv/
+venv_tts_try/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+xiaoyi.db
+*.db-journal
+
+# ---- Node / frontend ----
+node_modules/
+frontend/node_modules/
+frontend/dist/
+# postinstall 生成的 Silero VAD 资产（见 frontend/.gitignore）
+frontend/public/vad2/
+
+# ---- TTS local previews / scratch ----
+_tts_preview*.mp3
+_tts_*.py
+_tts_preview_text.txt
+
+# ---- corpus (if ever linked under this tree) ----
+语料库/
+_exports/
+
+# ---- IDE / OS ----
+.idea/
+.vscode/
+.cursor/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- logs / temp ----
+*.log
+tmp/
+temp/
+.cache/
